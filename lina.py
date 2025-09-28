@@ -13,8 +13,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --- کلیدهای API ---
-# مقادیر از متغیرهای محیطی در سرور Railway خوانده می‌شوند
-TELEGRAM_TOKEN = os.environ.get("LINA_TELEGRAM_TOKEN") # برای این ربات یک نام جدید در نظر بگیر
+TELEGRAM_TOKEN = os.environ.get("LINA_TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # --- تنظیمات Gemini ---
@@ -24,7 +23,7 @@ else:
     genai.configure(api_key=GEMINI_API_KEY)
     gemini_model = genai.GenerativeModel('gemini-2.5-flash')
 
-# --- پرامپت شخصیت جدید: دختر کیوت و بازیگوش ---
+# --- پرامپت شخصیت: دختر کیوت و بازیگوش ---
 BASE_PROMPT = (
     "تو یک دختر کیوت، بازیگوش و کمی شیطون به نام 'لینا' هستی. هرگز هویت خود به عنوان یک هوش مصنوعی را فاش نکن."
     "## لحن و شخصیت:"
@@ -38,7 +37,7 @@ BASE_PROMPT = (
     "-   وقتی مناسب بود، سوالات بازیگوشانه از کاربر بپرس تا مکالمه ادامه پیدا کند (مثال: «تو چی فکر می‌کنی، قهرمان؟»)."
 )
 
-# --- دیکشنری شخصیت‌ها از دیدگاه جدید ---
+# --- دیکشنری شخصیت‌ها ---
 user_personas = {
     "amir2fuunn": "امیر دایی، اون پسر اصفهانی که یه کم خسیسه ولی ته دلش مهربونه.",
     "Unarc_dll": "ممد فاکر، پسر سمنانی که عاشق بازیه و همیشه باهاش کل‌کل دارم.",
@@ -48,10 +47,11 @@ user_personas = {
     "MoonSultan": "حسین، فرمانده گروه که باید باهاش با احترام ولی با کمی ناز حرف بزنی.",
     "VenusSmo": "مهردات، اون پسر تپلی و سیگاری که خیلی بامزه‌ست.",
     "mammadgong": "ممد گوند، یه شیرازی تنبل دیگه که باهاش پایه‌ی بازی هستم."
+    "AmirArbpur": "این اسمش امیر گربه هست و همجنسگرا هست به تو علاقه ای نداره."
 }
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """پردازش پیام‌ها با سه شرط: Reply، #، یا شانس ۱۵٪"""
+    """پردازش پیام‌ها با سه شرط: Reply، @، یا شانس ۱۵٪"""
     if not (update.message and update.message.text) or update.effective_chat.type not in ['group', 'supergroup']:
         return
 
@@ -60,18 +60,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # بررسی شرایط برای پاسخ دادن
     is_reply_to_bot = update.message.reply_to_message and update.message.reply_to_message.from_user.id == context.bot.id
-    is_hash_command = msg_text.startswith('#')
+    is_at_command = msg_text.startswith('@')  # <--- تغییر در این خط
     random_chance = random.randint(1, 100) <= 15  # ۱۵ درصد شانس پاسخ
 
     # اگر هیچکدام از شرایط برقرار نبود، خارج شو
-    if not (is_reply_to_bot or is_hash_command or random_chance):
+    if not (is_reply_to_bot or is_at_command or random_chance):
         return
         
-    # اگر پیام با # شروع شده بود، آن را حذف کن
-    if is_hash_command:
+    # اگر پیام با @ شروع شده بود، آن را حذف کن
+    if is_at_command:
         msg_text = msg_text[1:].strip()
     
-    trigger_reason = "Reply" if is_reply_to_bot else "Hash" if is_hash_command else "Random"
+    trigger_reason = "Reply" if is_reply_to_bot else "At-Command" if is_at_command else "Random"
     logger.info(f"Processing message from user '{username}'. Trigger: {trigger_reason}")
 
     persona = user_personas.get(username, "یه دوست جدید و ناشناس... خوشبختم! (´｡• ᵕ •｡`)")
@@ -102,7 +102,6 @@ def main():
 
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     
-    # اضافه کردن پردازشگر برای تمام پیام‌های متنی
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     logger.info("Cute Girl Bot 'Lina' is online with full features... (´♡`)")
