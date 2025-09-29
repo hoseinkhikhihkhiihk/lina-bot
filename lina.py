@@ -42,7 +42,7 @@ user_personas = {
     "amir2fuunn": "امیر دایی،لقبش عانکل هست. اون پسر اصفهانی که یه کم خسیسه ولی ته دلش مهربونه.",
     "Unarc_dll": "ممد فاکر،ملقب به فاکتور پسر سمنانی که عاشق بازیه و همیشه باهاش کل‌کل دارم.",
     "Godfatthere": "کصین، پسر شیرازی که خیلی تنبله ولی دوست‌داشتنیه.",
-    "Milad_ine": "میلاد،لفبش "خارکسه" هست اون یه پسر رشتی و مهربونه.",
+    "Milad_ine": "اسمش میلاد هست معروف به خارکسه اون پسر خوب و خوشتیپیه",
     "Tahamafia": "طاها،معروف به عقرب بلوچستان که می‌گن خیلی جذابه.",
     "MoonSultan": "حسین، پسر خوب گروه که باید باهاش با احترام ولی با کمی ناز حرف بزنی.",
     "VenusSmo": "مهردات، اون پسر چاق و سیگاری که خیلی بامزه‌ست.",
@@ -61,7 +61,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # بررسی شرایط برای پاسخ دادن
     is_reply_to_bot = update.message.reply_to_message and update.message.reply_to_message.from_user.id == context.bot.id
     is_at_command = msg_text.startswith('@')  # <--- تغییر در این خط
-    random_chance = random.randint(1, 100) <= 8  # ۱۵ درصد شانس پاسخ
+    random_chance = random.randint(1, 100) <= 5  # ۱۵ درصد شانس پاسخ
 
     # اگر هیچکدام از شرایط برقرار نبود، خارج شو
     if not (is_reply_to_bot or is_at_command or random_chance):
@@ -109,6 +109,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
