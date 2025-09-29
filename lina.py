@@ -62,7 +62,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # بررسی شرایط برای پاسخ دادن
     is_reply_to_bot = update.message.reply_to_message and update.message.reply_to_message.from_user.id == context.bot.id
     is_at_command = msg_text.startswith('@')  # <--- تغییر در این خط
-    random_chance = random.randint(1, 100) <= 5  # ۱۵ درصد شانس پاسخ
+    random_chance = random.randint(1, 100) <= 1  # ۱۵ درصد شانس پاسخ
 
     # اگر هیچکدام از شرایط برقرار نبود، خارج شو
     if not (is_reply_to_bot or is_at_command or random_chance):
@@ -110,6 +110,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
