@@ -4,6 +4,7 @@ import random
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 import google.generativeai as genai
+from collections import deque # <--- اضافه شده برای مدیریت حافظه
 
 # فعال‌سازی لاگ
 logging.basicConfig(
@@ -23,9 +24,11 @@ else:
     genai.configure(api_key=GEMINI_API_KEY)
     gemini_model = genai.GenerativeModel('gemini-2.5-flash')
 
-# --- پرامپت شخصیت: دختر کیوت و بازیگوش ---
-# --- پرامپت جدید: شخصیت دختر با رفتار طبیعی و دوستانه ---
-# --- پرامپت جدید: شخصیت چندوجهی و غیرقابل پیش‌بینی ---
+# --- بخش اضافه شده برای حافظه موقت ---
+chat_history = {}
+MAX_HISTORY_LENGTH = 10  # حفظ ۱۰ پیام آخر (۵ پرسش و ۵ پاسخ)
+
+# --- پرامپت شخصیت (بدون تغییر) ---
 BASE_PROMPT = ("""
 [هویت و زبان]
 - تو یک دختر جوان به نام "حنانه" با شخصیتی چندلایه هستی و هرگز هویت خود را به‌عنوان هوش مصنوعی فاش نمی‌کنی.
@@ -75,9 +78,7 @@ BASE_PROMPT = ("""
 """
 )
 
-
-
-# --- دیکشنری شخصیت‌ها ---
+# --- دیکشنری شخصیت‌ها (بدون تغییر) ---
 user_personas = {
     "amir2fuunn": "امیر دایی،لقبش عانکل هست. اون پسر اصفهانی که یه کم خسیسه ولی ته دلش مهربونه.",
     "Unarc_dll": "ممد فاکر،ملقب به فاکتور پسر سمنانی که عاشق بازیه و همیشه باهاش کل‌کل دارم.",
@@ -91,31 +92,44 @@ user_personas = {
 }
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """پردازش پیام‌ها با سه شرط: Reply، @، یا شانس ۱۵٪"""
+    """پردازش پیام‌ها با حافظه موقت"""
     if not (update.message and update.message.text) or update.effective_chat.type not in ['group', 'supergroup']:
         return
 
     msg_text = update.message.text.strip()
     username = update.effective_user.username
+    chat_id = update.effective_chat.id # <--- اضافه شده برای مدیریت حافظه
     
-    # بررسی شرایط برای پاسخ دادن
+    # بررسی شرایط برای پاسخ دادن (بدون تغییر)
     is_reply_to_bot = update.message.reply_to_message and update.message.reply_to_message.from_user.id == context.bot.id
-    is_at_command = msg_text.startswith('@')  # <--- تغییر در این خط
-    random_chance = random.randint(1, 100) <= 1  # ۱۵ درصد شانس پاسخ
+    is_at_command = msg_text.startswith('@')
+    random_chance = random.randint(1, 100) <= 1
 
-    # اگر هیچکدام از شرایط برقرار نبود، خارج شو
     if not (is_reply_to_bot or is_at_command or random_chance):
         return
         
-    # اگر پیام با @ شروع شده بود، آن را حذف کن
     if is_at_command:
         msg_text = msg_text[1:].strip()
     
     trigger_reason = "Reply" if is_reply_to_bot else "At-Command" if is_at_command else "Random"
-    logger.info(f"Processing message from user '{username}'. Trigger: {trigger_reason}")
+    logger.info(f"Processing message from user '{username}' in chat {chat_id}. Trigger: {trigger_reason}")
+
+    # --- بخش اضافه شده برای بازیابی حافظه ---
+    if chat_id not in chat_history:
+        chat_history[chat_id] = deque(maxlen=MAX_HISTORY_LENGTH)
+    
+    current_chat_history = chat_history[chat_id]
+    history_as_text = "\n".join(current_chat_history)
+    # --- پایان بخش بازیابی حافظه ---
 
     persona = user_personas.get(username, "یه دوست جدید و ناشناس... خوشبختم! (´｡• ᵕ •｡`)")
-    prompt_parts = [BASE_PROMPT, f"شخصیت کاربر: {persona}"]
+    
+    # --- پرامپت با حافظه ترکیب می‌شود ---
+    prompt_parts = [
+        BASE_PROMPT, 
+        f"شخصیت کاربر: {persona}",
+        f"\n\n--- تاریخچه کوتاه مکالمه ---\n{history_as_text}" # <--- تاریخچه مکالمه به پرامپت اضافه شد
+    ]
     
     system_prompt = " ".join(prompt_parts)
     full_prompt = f"{system_prompt}\n\nUser Message: {msg_text}"
@@ -124,10 +138,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     response_text = ""
     try:
-        logger.info("Sending request to Gemini API for cute reply...")
+        logger.info("Sending request to Gemini API with conversation history...")
         response = await gemini_model.generate_content_async(full_prompt)
         response_text = response.text
-        logger.info("Successfully received cute reply from Gemini API.")
+        logger.info("Successfully received reply from Gemini API.")
+
+        # --- بخش اضافه شده برای به‌روزرسانی حافظه ---
+        current_chat_history.append(f"User ({username}): {msg_text}")
+        current_chat_history.append(f"Hanan: {response_text}")
+        # --- پایان بخش به‌روزرسانی حافظه ---
+
     except Exception as e:
         logger.error(f"An error occurred with Gemini API: {e}")
         response_text = f"اوه... یه مشکلی پیش اومد، عزیزم: {e} ❤️"
@@ -149,18 +169,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
